@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useApp } from "../context/AppContext"
 import { useAuth } from "../context/AuthContext"
 import Topbar from "../components/layout/Topbar"
-import { Button, Modal, Input, Textarea, Select, StatusBadge, Avatar, EmptyState, Loader } from "../components/ui/ui"
+import { Button, Modal, Input, Textarea, Select, StatusBadge, Avatar, EmptyState, Loader, Skeleton } from "../components/ui/ui"
 import { formatDate, formatRelative, getInitials } from "../utils/helpers"
 import API from "../api/axios"
 import "./WorkspaceDetail.css"
@@ -13,11 +13,17 @@ export default function WorkspaceDetail() {
     const { user } = useAuth()
     const { setCurrentWorkspace, socket } = useApp()
     const navigate = useNavigate()
+    const location = useLocation()
 
     const [workspace, setWorkspace] = useState(null)
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
-    const [tab, setTab] = useState("projects")
+    const [tab, setTab] = useState(() => location.pathname.endsWith("/members") ? "members" : "projects")
+
+    useEffect(() => {
+        if (location.pathname.endsWith("/members")) setTab("members")
+        else if (tab === "members") setTab("projects") // Only revert if it was members and URL changed back
+    }, [location.pathname])
 
     // Chat state
     const [selectedProject, setSelectedProject] = useState(null)
@@ -264,8 +270,13 @@ export default function WorkspaceDetail() {
     }
 
     // Editors directory
+    const searchTimer = useRef(null)
     useEffect(() => {
-        if (tab === "editors") fetchEditors()
+        if (tab === "editors") {
+            clearTimeout(searchTimer.current)
+            searchTimer.current = setTimeout(() => fetchEditors(), 300)
+        }
+        return () => clearTimeout(searchTimer.current)
     }, [tab, editorSearch])
 
     async function fetchEditors() {
@@ -379,7 +390,20 @@ export default function WorkspaceDetail() {
                                     value={editorSearch} onChange={e => setEditorSearch(e.target.value)} />
                             </div>
                             {loadingEditors ? (
-                                <div className="ws-empty">Loading editors...</div>
+                                <div className="ws-editors-dir" style={{ padding: "16px" }}>
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <div key={i} className="editor-dir-item" style={{ border: "none", pointerEvents: "none" }}>
+                                            <div className="ws-member-left">
+                                                <Skeleton width={32} height={32} circle />
+                                                <div className="ws-member-info" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                                    <Skeleton width={120} height={14} />
+                                                    <Skeleton width={160} height={12} />
+                                                </div>
+                                            </div>
+                                            <Skeleton width={60} height={24} />
+                                        </div>
+                                    ))}
+                                </div>
                             ) : allEditors.length === 0 ? (
                                 <div className="ws-empty">No editors found</div>
                             ) : (
@@ -446,7 +470,17 @@ export default function WorkspaceDetail() {
                                 <div className={`chat-messages-col ${threadParent ? "with-thread" : ""}`}>
                                     <div className="chat-messages">
                                         {loadingMsgs ? (
-                                            <div className="chat-loading"><Loader /></div>
+                                            <div className="chat-messages" style={{ padding: "20px" }}>
+                                                {[1, 2, 3].map(i => (
+                                                    <div key={i} className={`chat-msg ${i % 2 === 0 ? "chat-msg-me" : "chat-msg-other"}`}>
+                                                        {i % 2 !== 0 && <Skeleton width={28} height={28} circle />}
+                                                        <div className="chat-bubble" style={{ background: "transparent", border: "none", boxShadow: "none", padding: 0 }}>
+                                                            {i % 2 !== 0 && <Skeleton width={80} height={12} style={{ marginBottom: "6px" }} />}
+                                                            <Skeleton width={180 + (i * 20)} height={36} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         ) : messages.length === 0 ? (
                                             <div className="chat-start">
                                                 <div className="chat-start-icon">💬</div>
@@ -563,7 +597,19 @@ export default function WorkspaceDetail() {
                                         </div>
                                         {/* Replies */}
                                         <div className="thread-replies">
-                                            {loadingThread ? <Loader /> : threadReplies.map(r => (
+                                            {loadingThread ? (
+                                                <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                                                    {[1, 2].map(i => (
+                                                        <div key={i} className="thread-reply" style={{ border: "none", padding: 0 }}>
+                                                            <Skeleton width={22} height={22} circle />
+                                                            <div className="thread-reply-body" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                                                                <Skeleton width={80} height={12} />
+                                                                <Skeleton width="100%" height={14} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : threadReplies.map(r => (
                                                 <div key={r._id} className="thread-reply">
                                                     <Avatar name={r.sender?.name} src={r.sender?.avatar} size={22} />
                                                     <div className="thread-reply-body">

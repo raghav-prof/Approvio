@@ -65,6 +65,15 @@ export function Loader({ size = 40 }) {
     )
 }
 
+export function Skeleton({ width, height, circle = false, style, className = "" }) {
+    return (
+        <div 
+            className={`skeleton ${circle ? "skeleton-circle" : ""} ${className}`} 
+            style={{ width, height, ...style }}
+        />
+    )
+}
+
 export function Input({ label, error, ...props }) {
     return (
         <div className="input-group">

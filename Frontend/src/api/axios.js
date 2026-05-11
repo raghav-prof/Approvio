@@ -1,7 +1,7 @@
 import axios from "axios"
 
 const API = axios.create({
-    baseURL: "https://approvio.onrender.com/api",
+    baseURL: import.meta.env.VITE_API_URL || "https://approvio.onrender.com/api",
     withCredentials: true,
     headers: { "Content-Type": "application/json" }
 })
@@ -31,7 +31,7 @@ API.interceptors.response.use(
 
             try {
                 const { data } = await axios.post(
-                    "https://approvio.onrender.com/api/auth/refresh",
+                    `${import.meta.env.VITE_API_URL || "https://approvio.onrender.com/api"}/auth/refresh`,
                     {},
                     { withCredentials: true }
                 )
