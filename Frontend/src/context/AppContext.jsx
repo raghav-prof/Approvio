@@ -17,7 +17,7 @@ export function AppProvider({ children }) {
     useEffect(() => {
         if (!user) return
 
-        const s = io("http://localhost:4100", { withCredentials: true })
+        const s = io("https://approvio.onrender.com", { withCredentials: true })
         s.on("connect", () => {
             s.emit("join_user", user.id)
         })
