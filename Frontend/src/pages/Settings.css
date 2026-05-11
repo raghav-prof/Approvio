@@ -1,0 +1,30 @@
+.settings-card { padding: 28px; max-width: 600px; margin-bottom: 20px; }
+.settings-section-title { font-size: var(--font-lg); font-weight: 700; margin-bottom: 20px; }
+.settings-form { display: flex; flex-direction: column; gap: 16px; }
+
+.settings-avatar-row {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 8px;
+}
+.settings-avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-primary), #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--font-xl); font-weight: 800; color: white;
+    overflow: hidden;
+}
+.settings-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.settings-email { display: block; font-size: var(--font-sm); font-weight: 600; }
+.settings-role {
+    display: block; font-size: var(--font-xs); color: var(--text-muted);
+    text-transform: capitalize;
+}
+.settings-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.saved-indicator { font-size: var(--font-sm); color: var(--color-success); font-weight: 600; }
+
+.settings-info-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border-primary);
+}
+.settings-info-row:last-child { border-bottom: none; }
+.settings-label { font-size: var(--font-sm); color: var(--text-secondary); }
+.settings-value { font-size: var(--font-sm); font-weight: 600; }
