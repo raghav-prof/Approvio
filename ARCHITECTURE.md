@@ -1,7 +1,7 @@
 # Approvio — Architecture Reference Map
 
 > **Purpose**: This file is an internal AI reference. It maps every file in the project to its responsibility so that future AI sessions can quickly orient themselves without re-reading every file.
-
+ 
 --- 
 
 ## Backend (`Backend/src/`) 
