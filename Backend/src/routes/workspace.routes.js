@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { createWorkspace, getWorkspaces, getWorkspaceById, updateWorkspace, deleteWorkspace } from "../controllers/workspace.controllers.js"
+import { createWorkspace, getWorkspaces, getWorkspaceById, updateWorkspace, deleteWorkspace, addMemberDirect } from "../controllers/workspace.controllers.js"
 import { inviteMember, acceptInvitation, getMembers, updateMemberRole, removeMember } from "../controllers/member.controllers.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -21,5 +21,6 @@ router.post("/join/:token", acceptInvitation)
 router.get("/:id/members", getMembers)
 router.put("/:id/members/:userId", updateMemberRole)
 router.delete("/:id/members/:userId", removeMember)
+router.post("/:id/add-member", addMemberDirect)
 
 export default router

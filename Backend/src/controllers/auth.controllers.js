@@ -179,3 +179,19 @@ export const updateProfile = asyncHandler(async (req, res) => {
     if (!user) throw new ApiError(404, "User not found")
     return res.status(200).json(new ApiResponse(200, user, "Profile updated"))
 })
+
+export const listEditors = asyncHandler(async (req, res) => {
+    const { search } = req.query
+    const query = { role: "editor" }
+    if (search) {
+        query.$or = [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+        ]
+    }
+    const editors = await User.find(query)
+        .select("name email avatar bio")
+        .sort({ name: 1 })
+        .limit(50)
+    return res.status(200).json(new ApiResponse(200, editors, "Editors fetched"))
+})

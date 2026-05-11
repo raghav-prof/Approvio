@@ -42,6 +42,12 @@ export default function WorkspaceDetail() {
     const [assignProject, setAssignProject] = useState(null)
     const [selectedEditors, setSelectedEditors] = useState([])
 
+    // Editors directory state
+    const [allEditors, setAllEditors] = useState([])
+    const [editorSearch, setEditorSearch] = useState("")
+    const [loadingEditors, setLoadingEditors] = useState(false)
+    const [addingEditor, setAddingEditor] = useState(null)
+
     // Modals
     const [showCreateProject, setShowCreateProject] = useState(false)
     const [showInvite, setShowInvite] = useState(false)
@@ -257,6 +263,30 @@ export default function WorkspaceDetail() {
         } finally { setCreating(false) }
     }
 
+    // Editors directory
+    useEffect(() => {
+        if (tab === "editors") fetchEditors()
+    }, [tab, editorSearch])
+
+    async function fetchEditors() {
+        setLoadingEditors(true)
+        try {
+            const params = editorSearch ? `?search=${encodeURIComponent(editorSearch)}` : ""
+            const { data } = await API.get(`/auth/editors${params}`)
+            setAllEditors(data.data)
+        } catch {} finally { setLoadingEditors(false) }
+    }
+
+    async function handleAddToWorkspace(editorId) {
+        setAddingEditor(editorId)
+        try {
+            await API.post(`/workspaces/${id}/add-member`, { userId: editorId })
+            fetchData()
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to add")
+        } finally { setAddingEditor(null) }
+    }
+
     const myRole = workspace?.members?.find(m => (m.user?._id || m.user) === user?.id)?.role
     const isAdmin = myRole === "owner" || myRole === "admin"
     const workspaceEditors = workspace?.members?.filter(m => m.role === "editor") || []
@@ -274,6 +304,7 @@ export default function WorkspaceDetail() {
                     <div className="ws-panel-tabs">
                         <button className={`ws-tab ${tab === "projects" ? "active" : ""}`} onClick={() => setTab("projects")}>Projects</button>
                         <button className={`ws-tab ${tab === "members" ? "active" : ""}`} onClick={() => setTab("members")}>Members</button>
+                        {isAdmin && <button className={`ws-tab ${tab === "editors" ? "active" : ""}`} onClick={() => setTab("editors")}>Find Editors</button>}
                     </div>
 
                     {tab === "projects" && (
@@ -337,6 +368,45 @@ export default function WorkspaceDetail() {
                                     <span className={`role-badge role-${m.role}`}>{m.role}</span>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {tab === "editors" && (
+                        <div className="ws-editors-dir">
+                            <div className="editors-search">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" className="editors-search-input" placeholder="Search editors by name or email..."
+                                    value={editorSearch} onChange={e => setEditorSearch(e.target.value)} />
+                            </div>
+                            {loadingEditors ? (
+                                <div className="ws-empty">Loading editors...</div>
+                            ) : allEditors.length === 0 ? (
+                                <div className="ws-empty">No editors found</div>
+                            ) : (
+                                allEditors.map(editor => {
+                                    const isMember = workspace?.members?.some(m => (m.user?._id || m.user) === editor._id)
+                                    return (
+                                        <div key={editor._id} className="editor-dir-item">
+                                            <div className="ws-member-left">
+                                                <Avatar name={editor.name} src={editor.avatar} size={32} />
+                                                <div className="ws-member-info">
+                                                    <span className="ws-member-name">{editor.name}</span>
+                                                    <span className="ws-member-email">{editor.email}</span>
+                                                </div>
+                                            </div>
+                                            {isMember ? (
+                                                <span className="editor-dir-added">Added</span>
+                                            ) : (
+                                                <button className="editor-dir-add-btn"
+                                                    disabled={addingEditor === editor._id}
+                                                    onClick={() => handleAddToWorkspace(editor._id)}>
+                                                    {addingEditor === editor._id ? "Adding..." : "+ Add"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )
+                                })
+                            )}
                         </div>
                     )}
                 </div>

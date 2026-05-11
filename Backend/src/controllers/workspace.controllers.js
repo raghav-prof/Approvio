@@ -102,3 +102,27 @@ export const deleteWorkspace = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, {}, "Workspace deleted"))
 })
+
+export const addMemberDirect = asyncHandler(async (req, res) => {
+    const { userId } = req.body
+    if (!userId) throw new ApiError(400, "User ID is required")
+
+    const workspace = await Workspace.findById(req.params.id)
+    if (!workspace) throw new ApiError(404, "Workspace not found")
+
+    const member = workspace.members.find(m => m.user.toString() === req.user._id.toString())
+    if (!member || !["owner", "admin"].includes(member.role))
+        throw new ApiError(403, "Only owner or admin can add members")
+
+    const alreadyMember = workspace.members.some(m => m.user.toString() === userId)
+    if (alreadyMember) throw new ApiError(400, "User is already a member")
+
+    workspace.members.push({ user: userId, role: "editor" })
+    await workspace.save()
+
+    const populated = await Workspace.findById(workspace._id)
+        .populate("owner", "name email avatar")
+        .populate("members.user", "name email avatar")
+
+    return res.status(200).json(new ApiResponse(200, populated, "Member added"))
+})
