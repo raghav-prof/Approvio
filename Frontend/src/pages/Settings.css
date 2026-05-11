@@ -43,3 +43,32 @@
 .settings-info-row:last-child { border-bottom: none; }
 .settings-label { font-size: var(--text-13); color: var(--text-tertiary); }
 .settings-value { font-size: var(--text-13); font-weight: 500; }
+
+/* Role Switcher */
+.role-switcher {
+    display: flex; gap: 8px;
+}
+.role-option {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    font-size: var(--text-14); font-weight: 500;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--duration-fast);
+    background: var(--bg-primary);
+}
+.role-option:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+.role-option.active {
+    border-color: var(--accent);
+    color: var(--accent-text);
+    background: var(--accent-glow);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.role-option.active svg { color: var(--accent-text); }

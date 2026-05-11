@@ -7,7 +7,7 @@
 /* ═══════════════════════════════════════════
    ONBOARDING — YunoJuno-style
    ═══════════════════════════════════════════ */
-.onboarding { max-width: 820px; }
+.onboarding { max-width: 820px; margin: 0 auto; }
 
 .welcome-hero {
     position: relative;

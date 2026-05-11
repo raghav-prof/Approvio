@@ -165,11 +165,12 @@ export const getMe = asyncHandler(async (req, res) => {
 })
 
 export const updateProfile = asyncHandler(async (req, res) => {
-    const { name, bio, avatar } = req.body
+    const { name, bio, avatar, role } = req.body
     const updates = {}
     if (name !== undefined) updates.name = name
     if (bio !== undefined) updates.bio = bio
     if (avatar !== undefined) updates.avatar = avatar
+    if (role !== undefined && ["client", "editor"].includes(role)) updates.role = role
 
     const user = await User.findByIdAndUpdate(
         req.user._id, { $set: updates }, { new: true, runValidators: true }

@@ -296,6 +296,59 @@
 .chat-send-btn:hover { background: var(--accent-hover); }
 .chat-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+/* File Upload */
+.chat-file-input { display: none; }
+.chat-attach-btn {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all var(--duration-fast);
+}
+.chat-attach-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+/* File Preview Strip */
+.chat-file-preview {
+    display: flex; gap: 8px; padding: 8px 16px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-secondary);
+    overflow-x: auto; flex-shrink: 0;
+}
+.chat-file-thumb {
+    position: relative;
+    width: 64px; height: 64px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    flex-shrink: 0;
+    background: var(--bg-primary);
+    display: flex; align-items: center; justify-content: center;
+}
+.chat-file-thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.chat-file-name {
+    font-size: 9px; text-align: center;
+    color: var(--text-muted); padding: 4px;
+    word-break: break-all; line-height: 1.2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+.chat-file-remove {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6); color: white;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background var(--duration-fast);
+    line-height: 1;
+}
+.chat-file-remove:hover { background: var(--danger); }
+
 /* ═══════════════════════════════════════════
    THREAD PANEL
    ═══════════════════════════════════════════ */

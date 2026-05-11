@@ -28,6 +28,8 @@ export default function WorkspaceDetail() {
     const [typingUsers, setTypingUsers] = useState([])
     const chatEndRef = useRef(null)
     const typingTimeout = useRef(null)
+    const fileInputRef = useRef(null)
+    const [chatFiles, setChatFiles] = useState([])
 
     // Thread state
     const [threadParent, setThreadParent] = useState(null)
@@ -123,13 +125,36 @@ export default function WorkspaceDetail() {
 
     async function handleSendMessage(e) {
         e.preventDefault()
-        if (!msgText.trim() || !selectedProject) return
+        if (!msgText.trim() && chatFiles.length === 0) return
+        if (!selectedProject) return
         setSending(true)
         try {
-            await API.post("/messages", { project: selectedProject._id, text: msgText })
+            if (chatFiles.length > 0) {
+                const formData = new FormData()
+                formData.append("project", selectedProject._id)
+                if (msgText.trim()) formData.append("text", msgText)
+                chatFiles.forEach(f => formData.append("files", f))
+                await API.post("/messages", formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
+                })
+            } else {
+                await API.post("/messages", { project: selectedProject._id, text: msgText })
+            }
             setMsgText("")
+            setChatFiles([])
+            if (fileInputRef.current) fileInputRef.current.value = ""
             if (socket) socket.emit("stop_typing", { projectId: selectedProject._id, user: { id: user.id, name: user.name } })
         } catch {} finally { setSending(false) }
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files).slice(0, 5)
+        setChatFiles(prev => [...prev, ...files].slice(0, 5))
+        if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+
+    function removeFile(index) {
+        setChatFiles(prev => prev.filter((_, i) => i !== index))
     }
 
     function handleTyping() {
@@ -405,10 +430,31 @@ export default function WorkspaceDetail() {
                                             </div>
                                         )}
                                     </div>
+                                    {chatFiles.length > 0 && (
+                                        <div className="chat-file-preview">
+                                            {chatFiles.map((f, i) => (
+                                                <div key={i} className="chat-file-thumb">
+                                                    {f.type.startsWith("image/") ? (
+                                                        <img src={URL.createObjectURL(f)} alt={f.name} />
+                                                    ) : (
+                                                        <span className="chat-file-name">{f.name}</span>
+                                                    )}
+                                                    <button className="chat-file-remove" onClick={() => removeFile(i)}>×</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     <form className="chat-input-bar" onSubmit={handleSendMessage}>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileSelect}
+                                            multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" className="chat-file-input" />
+                                        <button type="button" className="chat-attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach files">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                            </svg>
+                                        </button>
                                         <input type="text" className="chat-input" placeholder="Type a message..."
                                             value={msgText} onChange={e => { setMsgText(e.target.value); handleTyping() }} disabled={sending} />
-                                        <button type="submit" className="chat-send-btn" disabled={!msgText.trim() || sending}>
+                                        <button type="submit" className="chat-send-btn" disabled={(!msgText.trim() && chatFiles.length === 0) || sending}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                                             </svg>
