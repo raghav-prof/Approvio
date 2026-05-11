@@ -12,6 +12,7 @@ import submissionRouter from "./routes/submission.routes.js"
 import reviewRouter from "./routes/review.routes.js"
 import commentRouter from "./routes/comment.routes.js"
 import notificationRouter from "./routes/notification.routes.js"
+import messageRouter from "./routes/message.routes.js"
 import ApiResponse from "./utils/apiResponse.js"
 
 const app = express()
@@ -75,6 +76,7 @@ app.use("/api/submissions", submissionRouter)
 app.use("/api/reviews", reviewRouter)
 app.use("/api/comments", commentRouter)
 app.use("/api/notifications", notificationRouter)
+app.use("/api/messages", messageRouter)
 
 // 404 handler
 app.use((req, res) => {

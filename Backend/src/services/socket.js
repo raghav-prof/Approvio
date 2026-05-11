@@ -8,7 +8,12 @@ let io = null
 export const initializeSocket = (httpServer) => {
     io = new Server(httpServer, {
         cors: {
-            origin: process.env.FRONTEND_URL || "http://localhost:5173",
+            origin: [
+                process.env.FRONTEND_URL || "http://localhost:5173",
+                "http://localhost:3000",
+                "https://approvio.vercel.app",
+                "https://approvio-kohl.vercel.app",
+            ],
             methods: ["GET", "POST"],
             credentials: true,
         },
@@ -28,7 +33,7 @@ export const initializeSocket = (httpServer) => {
             socket.join(`workspace_${workspaceId}`)
         })
 
-        // Join project room for project-specific updates
+        // Join project room for project-specific updates + chat
         socket.on("join_project", (projectId) => {
             socket.join(`project_${projectId}`)
         })
@@ -40,6 +45,15 @@ export const initializeSocket = (httpServer) => {
 
         socket.on("leave_project", (projectId) => {
             socket.leave(`project_${projectId}`)
+        })
+
+        // Typing indicator — broadcast to project room
+        socket.on("typing", ({ projectId, user }) => {
+            socket.to(`project_${projectId}`).emit("user_typing", { projectId, user })
+        })
+
+        socket.on("stop_typing", ({ projectId, user }) => {
+            socket.to(`project_${projectId}`).emit("user_stop_typing", { projectId, user })
         })
 
         socket.on("disconnect", () => {

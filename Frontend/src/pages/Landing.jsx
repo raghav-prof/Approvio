@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom"
+import { useAuth } from "../context/AuthContext"
 import "./Landing.css"
 
 export default function Landing() {
+    const { user } = useAuth()
+
     return (
         <div className="landing">
             {/* Ambient background */}
@@ -23,8 +26,14 @@ export default function Landing() {
                         <span className="brand-name">Approvio</span>
                     </Link>
                     <div className="land-nav-links">
-                        <Link to="/login" className="nav-link">Log in</Link>
-                        <Link to="/register" className="btn btn-primary btn-sm">Get started <span className="btn-arrow">→</span></Link>
+                        {user ? (
+                            <Link to="/dashboard" className="btn btn-primary btn-sm">Dashboard <span className="btn-arrow">→</span></Link>
+                        ) : (
+                            <>
+                                <Link to="/login" className="nav-link">Log in</Link>
+                                <Link to="/register" className="btn btn-primary btn-sm">Get started <span className="btn-arrow">→</span></Link>
+                            </>
+                        )}
                     </div>
                 </div>
             </nav>
@@ -48,11 +57,20 @@ export default function Landing() {
                     </p>
 
                     <div className="hero-ctas anim-fade-up delay-3">
-                        <Link to="/register" className="btn btn-primary btn-lg">
-                            Start for free
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.33 8h9.34M8.67 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </Link>
-                        <a href="#features" className="btn btn-secondary btn-lg">See how it works</a>
+                        {user ? (
+                            <Link to="/dashboard" className="btn btn-primary btn-lg">
+                                Go to dashboard
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.33 8h9.34M8.67 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </Link>
+                        ) : (
+                            <>
+                                <Link to="/register" className="btn btn-primary btn-lg">
+                                    Start for free
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.33 8h9.34M8.67 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                </Link>
+                                <a href="#features" className="btn btn-secondary btn-lg">See how it works</a>
+                            </>
+                        )}
                     </div>
 
                     {/* Proof bar */}
@@ -109,8 +127,8 @@ export default function Landing() {
                     <div className="cta-glow" />
                     <h2 className="cta-heading">Ready to streamline your workflow?</h2>
                     <p className="cta-sub">Join teams who've replaced scattered feedback with structured approvals.</p>
-                    <Link to="/register" className="btn btn-primary btn-lg">
-                        Get started — it's free
+                    <Link to={user ? "/dashboard" : "/register"} className="btn btn-primary btn-lg">
+                        {user ? "Open dashboard" : "Get started — it's free"}
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.33 8h9.34M8.67 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </Link>
                 </div>
