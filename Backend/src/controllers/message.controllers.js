@@ -1,6 +1,6 @@
 import Message from "../models/message.model.js"
 import Project from "../models/project.model.js"
-import { asyncHandler } from "../utils/asyncHandler.js"
+import asyncHandler from "../utils/asyncHandler.js"
 import ApiError from "../utils/apiError.js"
 import ApiResponse from "../utils/apiResponse.js"
 import { uploadToCloudinary } from "../services/cloudinary.js"
