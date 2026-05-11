@@ -6,7 +6,7 @@
 
 ## Backend (`Backend/src/`) 
 
-### Entry Points
+### Entry Points 
 | File | Purpose |
 |------|---------|
 | `index.js` | Server entry — creates HTTP server, connects DB, initializes Socket.IO, listens on port 4100 |
