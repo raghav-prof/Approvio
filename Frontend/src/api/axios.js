@@ -6,7 +6,7 @@ const API = axios.create({
     headers: { "Content-Type": "application/json" }
 })
 
-// Request interceptor — attach token from localStorage as fallback
+// Request interceptor — attach token from localStorage
 API.interceptors.request.use((config) => {
     const token = localStorage.getItem("accessToken")
     if (token) {
@@ -22,6 +22,13 @@ API.interceptors.response.use(
         const originalRequest = error.config
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true
+
+            // Don't attempt refresh if there's no token stored
+            const storedToken = localStorage.getItem("accessToken")
+            if (!storedToken) {
+                return Promise.reject(error)
+            }
+
             try {
                 const { data } = await axios.post(
                     "https://approvio.onrender.com/api/auth/refresh",
@@ -34,7 +41,7 @@ API.interceptors.response.use(
                 return API(originalRequest)
             } catch {
                 localStorage.removeItem("accessToken")
-                window.location.href = "/login"
+                // Don't force redirect — let the auth context handle it naturally
                 return Promise.reject(error)
             }
         }
