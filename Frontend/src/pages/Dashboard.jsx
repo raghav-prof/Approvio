@@ -60,36 +60,36 @@ export default function Dashboard() {
             <div className="page-content">
                 {/* Stats Cards */}
                 <div className="stats-row">
-                    <div className="stat-card glass-card">
-                        <div className="stat-card-icon" style={{ background: "var(--accent-primary-glow)" }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <div className="stat-card">
+                        <div className="stat-card-icon" style={{ background: "var(--accent-muted)" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         </div>
                         <div className="stat-card-info">
                             <span className="stat-card-value">{workspaces.length}</span>
                             <span className="stat-card-label">Workspaces</span>
                         </div>
                     </div>
-                    <div className="stat-card glass-card">
-                        <div className="stat-card-icon" style={{ background: "var(--color-info-bg)" }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    <div className="stat-card">
+                        <div className="stat-card-icon" style={{ background: "var(--info-muted)" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </div>
                         <div className="stat-card-info">
                             <span className="stat-card-value">{stats.projects}</span>
                             <span className="stat-card-label">Projects</span>
                         </div>
                     </div>
-                    <div className="stat-card glass-card">
-                        <div className="stat-card-icon" style={{ background: "var(--color-success-bg)" }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <div className="stat-card">
+                        <div className="stat-card-icon" style={{ background: "var(--success-muted)" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         </div>
                         <div className="stat-card-info">
                             <span className="stat-card-value">{stats.submissions}</span>
                             <span className="stat-card-label">Submissions</span>
                         </div>
                     </div>
-                    <div className="stat-card glass-card">
-                        <div className="stat-card-icon" style={{ background: "var(--color-warning-bg)" }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <div className="stat-card">
+                        <div className="stat-card-icon" style={{ background: "var(--warning-muted)" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </div>
                         <div className="stat-card-info">
                             <span className="stat-card-value">{stats.pending}</span>
@@ -110,7 +110,7 @@ export default function Dashboard() {
                 ) : (
                     <div className="workspace-grid">
                         {workspaces.map(ws => (
-                            <div key={ws._id} className="workspace-card glass-card" onClick={() => navigate(`/workspace/${ws._id}`)}>
+                            <div key={ws._id} className="workspace-card" onClick={() => navigate(`/workspace/${ws._id}`)}>
                                 <div className="ws-card-header">
                                     <div className="ws-card-icon" style={{ background: `hsl(${ws.name.charCodeAt(0) * 7 % 360}, 55%, 50%)` }}>
                                         {ws.name[0]}
@@ -134,7 +134,7 @@ export default function Dashboard() {
                         </div>
                         <div className="activity-list">
                             {recentSubmissions.map(sub => (
-                                <div key={sub._id} className="activity-item glass-card">
+                                <div key={sub._id} className="activity-item">
                                     <div className="activity-info">
                                         <span className="activity-title">{sub.title}</span>
                                         <span className="activity-meta">{sub.workspaceName} → {sub.projectName}</span>

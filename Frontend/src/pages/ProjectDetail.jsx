@@ -157,7 +157,7 @@ export default function ProjectDetail() {
                             {selected.files?.length > 0 && (
                                 <div className="files-grid">
                                     {selected.files.map((f, i) => (
-                                        <div key={i} className="file-preview glass-card">
+                                        <div key={i} className="file-preview">
                                             {f.type === "image" ? (
                                                 <img src={f.url} alt={f.originalName} className="file-img" />
                                             ) : f.type === "video" ? (

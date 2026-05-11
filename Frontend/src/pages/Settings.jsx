@@ -24,7 +24,7 @@ export default function Settings() {
         <div className="page">
             <Topbar title="Settings" subtitle="Manage your account preferences" />
             <div className="page-content">
-                <div className="settings-card glass-card">
+                <div className="settings-card">
                     <h3 className="settings-section-title">Profile</h3>
                     <form onSubmit={handleSave} className="settings-form">
                         <div className="settings-avatar-row">
@@ -47,7 +47,7 @@ export default function Settings() {
                     </form>
                 </div>
 
-                <div className="settings-card glass-card">
+                <div className="settings-card">
                     <h3 className="settings-section-title">Account</h3>
                     <div className="settings-info-row">
                         <span className="settings-label">Email</span>

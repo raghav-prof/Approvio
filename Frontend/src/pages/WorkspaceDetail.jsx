@@ -96,7 +96,7 @@ export default function WorkspaceDetail() {
                         ) : (
                             <div className="project-grid">
                                 {projects.map(p => (
-                                    <div key={p._id} className="project-card glass-card" onClick={() => navigate(`/project/${p._id}`)}>
+                                    <div key={p._id} className="project-card" onClick={() => navigate(`/project/${p._id}`)}>
                                         <div className="project-card-top">
                                             <h3 className="project-card-name">{p.name}</h3>
                                             <StatusBadge status={p.status} />
@@ -126,7 +126,7 @@ export default function WorkspaceDetail() {
                         </div>
                         <div className="members-list">
                             {workspace.members?.map(m => (
-                                <div key={m.user?._id || m.user} className="member-row glass-card">
+                                <div key={m.user?._id || m.user} className="member-row">
                                     <div className="member-info">
                                         <Avatar name={m.user?.name} src={m.user?.avatar} size={40} />
                                         <div>
