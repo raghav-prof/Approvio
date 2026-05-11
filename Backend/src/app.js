@@ -25,7 +25,11 @@ app.use(cookieParser())
 const allowedOrigins = new Set([
     "http://localhost:5173",
     "http://localhost:3000",
-])
+    "https://approvio.vercel.app",
+    "https://approvio-kohl.vercel.app",
+    "https://approvio.onrender.com",
+    process.env.FRONTEND_URL,
+].filter(Boolean))
 
 const corsOptions = {
     origin: (origin, callback) => {
