@@ -15,7 +15,6 @@ export default function Dashboard() {
     const [showCreate, setShowCreate] = useState(false)
     const [creating, setCreating] = useState(false)
     const [wsForm, setWsForm] = useState({ name: "", description: "" })
-    const [recentSubmissions, setRecentSubmissions] = useState([])
     const [stats, setStats] = useState({ projects: 0, submissions: 0, pending: 0, approved: 0 })
 
     // Editor-specific state
@@ -40,8 +39,11 @@ export default function Dashboard() {
     async function fetchDashboardData() {
         if (workspaces.length === 0) return
         try {
+            // Fetch notifications for client's recent activity feed
+            const { data: notifData } = await API.get("/notifications?limit=15")
+            setNotifications(notifData.data.notifications || [])
+
             let totalProjects = 0, totalSubs = 0, pendingSubs = 0, approvedSubs = 0
-            let allSubs = []
             for (const ws of workspaces.slice(0, 5)) {
                 const { data: projData } = await API.get(`/projects?workspace=${ws._id}`)
                 totalProjects += projData.data.length
@@ -50,11 +52,9 @@ export default function Dashboard() {
                     totalSubs += subData.data.length
                     pendingSubs += subData.data.filter(s => s.status === "pending").length
                     approvedSubs += subData.data.filter(s => s.status === "approved").length
-                    allSubs.push(...subData.data.map(s => ({ ...s, projectName: p.name, workspaceName: ws.name })))
                 }
             }
             setStats({ projects: totalProjects, submissions: totalSubs, pending: pendingSubs, approved: approvedSubs })
-            setRecentSubmissions(allSubs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8))
         } catch {}
     }
 
@@ -357,27 +357,37 @@ export default function Dashboard() {
                                 <div className="section-header">
                                     <h2 className="section-title">Recent activity</h2>
                                 </div>
-                                {recentSubmissions.length === 0 ? (
+                                {notifications.length === 0 ? (
                                     <div className="empty-activity">
                                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-ghost)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                        <p>No activity yet. Submit your first piece of work to see it here.</p>
+                                        <p>No activity yet. Notifications will appear here when there's action in your projects.</p>
                                     </div>
                                 ) : (
-                                    <div className="activity-feed">
-                                        {recentSubmissions.map((sub, i) => (
-                                            <div key={sub._id} className={`feed-item anim-fade-up delay-${Math.min(i+1, 5)}`}>
-                                                <div className="feed-left">
-                                                    <Avatar name={sub.submittedBy?.name} src={sub.submittedBy?.avatar} size={28} />
-                                                    <div className="feed-info">
-                                                        <span className="feed-title">{sub.title}</span>
-                                                        <span className="feed-meta">
-                                                            {sub.submittedBy?.name || "Unknown"} → {sub.projectName}
-                                                            <span className="feed-dot">·</span>
-                                                            {formatRelative(sub.createdAt)}
-                                                        </span>
-                                                    </div>
+                                    <div className="notif-feed">
+                                        {notifications.map((n, i) => (
+                                            <div key={n._id}
+                                                className={`notif-feed-item ${!n.isRead ? "unread" : ""} anim-fade-up delay-${Math.min(i+1, 5)}`}
+                                                onClick={() => {
+                                                    if (!n.isRead) markNotifRead(n._id)
+                                                    if (n.relatedProject) navigate(`/workspace/${n.relatedWorkspace?._id || n.relatedWorkspace}`)
+                                                }}>
+                                                <div className="notif-feed-indicator">
+                                                    {!n.isRead && <div className="notif-feed-dot" />}
                                                 </div>
-                                                <StatusBadge status={sub.status} />
+                                                <div className="notif-feed-icon">
+                                                    {n.type === "project_assigned" ? "📋" :
+                                                     n.type === "new_message" ? "💬" :
+                                                     n.type === "submission_new" ? "🚀" :
+                                                     n.type === "submission_approved" ? "✅" :
+                                                     n.type === "submission_rejected" ? "❌" :
+                                                     n.type === "revision_requested" ? "🔄" :
+                                                     n.type === "member_added" ? "👋" : "🔔"}
+                                                </div>
+                                                <div className="notif-feed-body">
+                                                    <span className="notif-feed-title">{n.title}</span>
+                                                    <span className="notif-feed-message">{n.message}</span>
+                                                    <span className="notif-feed-time">{formatRelative(n.createdAt)}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

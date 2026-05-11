@@ -1,5 +1,6 @@
 import Message from "../models/message.model.js"
 import Project from "../models/project.model.js"
+import Notification from "../models/notification.model.js"
 import asyncHandler from "../utils/asyncHandler.js"
 import ApiError from "../utils/apiError.js"
 import ApiResponse from "../utils/apiResponse.js"
@@ -72,12 +73,15 @@ export const sendMessage = asyncHandler(async (req, res) => {
         .filter((id) => id.toString() !== req.user._id.toString())
 
     for (const userId of membersToNotify) {
-        emitToUser(userId, "notification", {
+        const notif = await Notification.create({
+            recipient: userId,
             type: "new_message",
             title: "New message",
             message: `${req.user.name} in ${project.name}: ${text?.slice(0, 50) || "Sent an attachment"}`,
             relatedProject: projectId,
+            relatedWorkspace: project.workspace._id
         })
+        emitToUser(userId, "notification", notif)
     }
 
     res.status(201).json(new ApiResponse(201, populated, "Message sent"))
