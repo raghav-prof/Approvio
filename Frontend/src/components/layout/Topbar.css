@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════
-   TOPBAR — Minimal, transparent
+   TOPBAR — Clean light
    ═══════════════════════════════════════════ */
 .topbar {
     display: flex; align-items: center; justify-content: space-between;
     height: var(--topbar-h);
     padding: 0 28px;
-    background: rgba(9, 9, 11, 0.6);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px) saturate(1.4);
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 50;
 }
 .topbar-title {
@@ -32,7 +32,7 @@
     transition: all var(--duration-fast);
     position: relative;
 }
-.notif-btn:hover { background: var(--bg-surface); color: var(--text-secondary); }
+.notif-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .notif-badge {
     position: absolute; top: 2px; right: 2px;
     min-width: 16px; height: 16px; border-radius: 8px;
@@ -46,7 +46,7 @@
 .notif-panel {
     position: absolute; right: -8px; top: calc(100% + 8px);
     width: 360px; max-height: 440px;
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-xl);
@@ -77,8 +77,8 @@
     cursor: pointer;
     transition: background var(--duration-fast);
 }
-.notif-item:hover { background: var(--bg-surface); }
-.notif-item.unread { background: rgba(139, 92, 246, 0.03); }
+.notif-item:hover { background: var(--bg-secondary); }
+.notif-item.unread { background: rgba(99, 102, 241, 0.03); }
 .notif-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--accent); flex-shrink: 0; margin-top: 6px;
@@ -90,8 +90,8 @@
 .notif-message {
     font-size: var(--text-12); color: var(--text-tertiary); line-height: 1.4;
 }
-.notif-time { font-size: var(--text-11); color: var(--text-ghost); margin-top: 2px; }
+.notif-time { font-size: var(--text-11); color: var(--text-muted); margin-top: 2px; }
 .notif-empty {
     padding: 40px 18px; text-align: center;
-    color: var(--text-ghost); font-size: var(--text-13);
+    color: var(--text-muted); font-size: var(--text-13);
 }

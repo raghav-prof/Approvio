@@ -32,6 +32,15 @@ const messageSchema = new mongoose.Schema(
                 ref: "User",
             },
         ],
+        parentMessage: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Message",
+            default: null,
+        },
+        threadCount: {
+            type: Number,
+            default: 0,
+        },
     },
     { timestamps: true }
 )

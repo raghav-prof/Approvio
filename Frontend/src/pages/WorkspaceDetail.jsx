@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useApp } from "../context/AppContext"
 import { useAuth } from "../context/AuthContext"
@@ -29,6 +29,17 @@ export default function WorkspaceDetail() {
     const chatEndRef = useRef(null)
     const typingTimeout = useRef(null)
 
+    // Thread state
+    const [threadParent, setThreadParent] = useState(null)
+    const [threadReplies, setThreadReplies] = useState([])
+    const [threadText, setThreadText] = useState("")
+    const [loadingThread, setLoadingThread] = useState(false)
+
+    // Editor assignment state
+    const [showAssignModal, setShowAssignModal] = useState(false)
+    const [assignProject, setAssignProject] = useState(null)
+    const [selectedEditors, setSelectedEditors] = useState([])
+
     // Modals
     const [showCreateProject, setShowCreateProject] = useState(false)
     const [showInvite, setShowInvite] = useState(false)
@@ -53,10 +64,7 @@ export default function WorkspaceDetail() {
     useEffect(() => {
         if (!selectedProject) return
         fetchMessages(selectedProject._id)
-        // Join project room for real-time
-        if (socket) {
-            socket.emit("join_project", selectedProject._id)
-        }
+        if (socket) socket.emit("join_project", selectedProject._id)
         return () => {
             if (socket) socket.emit("leave_project", selectedProject._id)
         }
@@ -65,42 +73,39 @@ export default function WorkspaceDetail() {
     // Listen for real-time messages
     useEffect(() => {
         if (!socket || !selectedProject) return
-
         const handleNewMessage = (msg) => {
             if (msg.project === selectedProject._id || msg.project?._id === selectedProject._id) {
-                setMessages(prev => {
-                    if (prev.some(m => m._id === msg._id)) return prev
-                    return [...prev, msg]
-                })
-                scrollToBottom()
+                if (!msg.parentMessage) {
+                    setMessages(prev => {
+                        if (prev.some(m => m._id === msg._id)) return prev
+                        return [...prev, msg]
+                    })
+                    scrollToBottom()
+                } else if (threadParent && msg.parentMessage === threadParent._id) {
+                    setThreadReplies(prev => {
+                        if (prev.some(m => m._id === msg._id)) return prev
+                        return [...prev, msg]
+                    })
+                }
             }
         }
-
-        const handleTyping = ({ projectId, user: typingUser }) => {
-            if (projectId === selectedProject._id && typingUser?.id !== user?.id) {
-                setTypingUsers(prev => {
-                    if (prev.find(u => u.id === typingUser.id)) return prev
-                    return [...prev, typingUser]
-                })
-            }
+        const handleTyping = ({ projectId, user: u }) => {
+            if (projectId === selectedProject._id && u?.id !== user?.id)
+                setTypingUsers(prev => prev.find(x => x.id === u.id) ? prev : [...prev, u])
         }
-
-        const handleStopTyping = ({ projectId, user: typingUser }) => {
-            if (projectId === selectedProject._id) {
-                setTypingUsers(prev => prev.filter(u => u.id !== typingUser.id))
-            }
+        const handleStopTyping = ({ projectId, user: u }) => {
+            if (projectId === selectedProject._id)
+                setTypingUsers(prev => prev.filter(x => x.id !== u.id))
         }
-
         socket.on("chat_message", handleNewMessage)
         socket.on("user_typing", handleTyping)
         socket.on("user_stop_typing", handleStopTyping)
-
         return () => {
             socket.off("chat_message", handleNewMessage)
             socket.off("user_typing", handleTyping)
             socket.off("user_stop_typing", handleStopTyping)
         }
-    }, [socket, selectedProject, user])
+    }, [socket, selectedProject, user, threadParent])
 
     async function fetchMessages(projectId) {
         setLoadingMsgs(true)
@@ -108,7 +113,6 @@ export default function WorkspaceDetail() {
             const { data } = await API.get(`/messages?project=${projectId}&limit=100`)
             setMessages(data.data.messages)
             setTimeout(scrollToBottom, 100)
-            // Mark as read
             API.put(`/messages/read?project=${projectId}`).catch(() => {})
         } catch {} finally { setLoadingMsgs(false) }
     }
@@ -124,10 +128,7 @@ export default function WorkspaceDetail() {
         try {
             await API.post("/messages", { project: selectedProject._id, text: msgText })
             setMsgText("")
-            // Stop typing indicator
-            if (socket) {
-                socket.emit("stop_typing", { projectId: selectedProject._id, user: { id: user.id, name: user.name } })
-            }
+            if (socket) socket.emit("stop_typing", { projectId: selectedProject._id, user: { id: user.id, name: user.name } })
         } catch {} finally { setSending(false) }
     }
 
@@ -140,6 +141,72 @@ export default function WorkspaceDetail() {
         }, 2000)
     }
 
+    // Thread
+    async function openThread(msg) {
+        setThreadParent(msg)
+        setLoadingThread(true)
+        try {
+            const { data } = await API.get(`/messages/${msg._id}/thread`)
+            setThreadReplies(data.data)
+        } catch {} finally { setLoadingThread(false) }
+    }
+
+    function closeThread() {
+        setThreadParent(null)
+        setThreadReplies([])
+        setThreadText("")
+    }
+
+    async function handleSendThreadReply(e) {
+        e.preventDefault()
+        if (!threadText.trim() || !threadParent) return
+        setSending(true)
+        try {
+            await API.post("/messages", {
+                project: selectedProject._id,
+                text: threadText,
+                parentMessage: threadParent._id,
+            })
+            setThreadText("")
+            // Re-fetch thread
+            const { data } = await API.get(`/messages/${threadParent._id}/thread`)
+            setThreadReplies(data.data)
+            // Update parent thread count in messages list
+            setMessages(prev => prev.map(m =>
+                m._id === threadParent._id ? { ...m, threadCount: (m.threadCount || 0) + 1 } : m
+            ))
+        } catch {} finally { setSending(false) }
+    }
+
+    // Editor assignment
+    function openAssignModal(project) {
+        setAssignProject(project)
+        setSelectedEditors(project.assignedEditors?.map(e => e._id || e) || [])
+        setShowAssignModal(true)
+    }
+
+    async function handleAssignEditors(e) {
+        e.preventDefault()
+        if (!assignProject) return
+        setCreating(true)
+        try {
+            await API.put(`/projects/${assignProject._id}/assign`, { editors: selectedEditors })
+            setShowAssignModal(false)
+            fetchData()
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to assign")
+        } finally { setCreating(false) }
+    }
+
+    function toggleEditor(editorId) {
+        setSelectedEditors(prev =>
+            prev.includes(editorId)
+                ? prev.filter(id => id !== editorId)
+                : [...prev, editorId]
+        )
+    }
+
+    // Project CRUD
     async function handleCreateProject(e) {
         e.preventDefault()
         setCreating(true)
@@ -167,6 +234,7 @@ export default function WorkspaceDetail() {
 
     const myRole = workspace?.members?.find(m => (m.user?._id || m.user) === user?.id)?.role
     const isAdmin = myRole === "owner" || myRole === "admin"
+    const workspaceEditors = workspace?.members?.filter(m => m.role === "editor") || []
 
     if (loading) return <div className="page"><Loader /></div>
     if (!workspace) return <div className="page"><EmptyState title="Workspace not found" /></div>
@@ -176,15 +244,11 @@ export default function WorkspaceDetail() {
             <Topbar title={workspace.name} subtitle={`${workspace.members?.length} members · ${projects.length} projects`} />
 
             <div className="ws-layout">
-                {/* LEFT PANEL — Projects/Members */}
+                {/* LEFT — Projects / Members */}
                 <div className="ws-left-panel">
                     <div className="ws-panel-tabs">
-                        <button className={`ws-tab ${tab === "projects" ? "active" : ""}`} onClick={() => setTab("projects")}>
-                            Projects
-                        </button>
-                        <button className={`ws-tab ${tab === "members" ? "active" : ""}`} onClick={() => setTab("members")}>
-                            Members
-                        </button>
+                        <button className={`ws-tab ${tab === "projects" ? "active" : ""}`} onClick={() => setTab("projects")}>Projects</button>
+                        <button className={`ws-tab ${tab === "members" ? "active" : ""}`} onClick={() => setTab("members")}>Members</button>
                     </div>
 
                     {tab === "projects" && (
@@ -197,29 +261,34 @@ export default function WorkspaceDetail() {
                             )}
                             {projects.length === 0 ? (
                                 <div className="ws-empty">No projects yet</div>
-                            ) : (
-                                projects.map(p => (
-                                    <div key={p._id}
-                                        className={`ws-project-item ${selectedProject?._id === p._id ? "active" : ""}`}
-                                        onClick={() => setSelectedProject(p)}>
-                                        <div className="ws-proj-top">
-                                            <span className="ws-proj-name">{p.name}</span>
-                                            <StatusBadge status={p.status} />
+                            ) : projects.map(p => (
+                                <div key={p._id}
+                                    className={`ws-project-item ${selectedProject?._id === p._id ? "active" : ""}`}
+                                    onClick={() => { setSelectedProject(p); closeThread() }}>
+                                    <div className="ws-proj-top">
+                                        <span className="ws-proj-name">{p.name}</span>
+                                        <StatusBadge status={p.status} />
+                                    </div>
+                                    <div className="ws-proj-meta">
+                                        <div className="ws-proj-editors">
+                                            {(p.assignedEditors || []).slice(0, 3).map(e => (
+                                                <Avatar key={e._id} name={e.name} src={e.avatar} size={20} />
+                                            ))}
+                                            {(p.assignedEditors?.length || 0) > 3 && (
+                                                <span className="more-count">+{p.assignedEditors.length - 3}</span>
+                                            )}
                                         </div>
-                                        <div className="ws-proj-meta">
-                                            <div className="ws-proj-editors">
-                                                {(p.assignedEditors || []).slice(0, 3).map(e => (
-                                                    <Avatar key={e._id} name={e.name} src={e.avatar} size={20} />
-                                                ))}
-                                                {(p.assignedEditors?.length || 0) > 3 && (
-                                                    <span className="more-count">+{p.assignedEditors.length - 3}</span>
-                                                )}
-                                            </div>
+                                        <div className="ws-proj-actions-row">
+                                            {isAdmin && (
+                                                <button className="ws-assign-btn" onClick={ev => { ev.stopPropagation(); openAssignModal(p) }} title="Assign editors">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                                                </button>
+                                            )}
                                             {p.deadline && <span className="ws-proj-deadline">{formatDate(p.deadline)}</span>}
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                </div>
+                            ))}
                         </div>
                     )}
 
@@ -247,7 +316,7 @@ export default function WorkspaceDetail() {
                     )}
                 </div>
 
-                {/* RIGHT PANEL — Chat or Empty */}
+                {/* RIGHT — Chat */}
                 <div className="ws-right-panel">
                     {!selectedProject ? (
                         <div className="chat-empty">
@@ -261,7 +330,6 @@ export default function WorkspaceDetail() {
                         </div>
                     ) : (
                         <div className="chat-panel">
-                            {/* Chat Header */}
                             <div className="chat-header">
                                 <div className="chat-header-info">
                                     <h3 className="chat-proj-name">{selectedProject.name}</h3>
@@ -271,95 +339,145 @@ export default function WorkspaceDetail() {
                                     </span>
                                 </div>
                                 <div className="chat-header-actions">
-                                    <Button variant="ghost" size="sm" onClick={() => navigate(`/project/${selectedProject._id}`)}>
-                                        View details
-                                    </Button>
-                                    <button className="chat-close-btn" onClick={() => setSelectedProject(null)}>
+                                    <Button variant="ghost" size="sm" onClick={() => navigate(`/project/${selectedProject._id}`)}>View details</Button>
+                                    <button className="chat-close-btn" onClick={() => { setSelectedProject(null); closeThread() }}>
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Messages */}
-                            <div className="chat-messages">
-                                {loadingMsgs ? (
-                                    <div className="chat-loading"><Loader /></div>
-                                ) : messages.length === 0 ? (
-                                    <div className="chat-start">
-                                        <div className="chat-start-icon">💬</div>
-                                        <h4>Start the conversation</h4>
-                                        <p>Send a message to begin collaborating on this project.</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {messages.map((msg, i) => {
-                                            const isMe = msg.sender?._id === user?.id || msg.sender === user?.id
-                                            const showAvatar = i === 0 || messages[i - 1]?.sender?._id !== msg.sender?._id
-                                            return (
-                                                <div key={msg._id} className={`chat-msg ${isMe ? "chat-msg-me" : "chat-msg-other"} ${!showAvatar ? "chat-msg-grouped" : ""}`}>
-                                                    {!isMe && showAvatar && (
-                                                        <Avatar name={msg.sender?.name} src={msg.sender?.avatar} size={28} />
-                                                    )}
-                                                    {!isMe && !showAvatar && <div className="chat-msg-spacer" />}
-                                                    <div className="chat-bubble">
-                                                        {!isMe && showAvatar && (
-                                                            <span className="chat-sender">{msg.sender?.name}</span>
-                                                        )}
-                                                        {msg.text && <p className="chat-text">{msg.text}</p>}
-                                                        {msg.attachments?.map((att, j) => (
-                                                            <div key={j} className="chat-attachment">
-                                                                {att.type === "image" ? (
-                                                                    <img src={att.url} alt={att.originalName} className="chat-att-img" />
-                                                                ) : att.type === "video" ? (
-                                                                    <video src={att.url} controls className="chat-att-video" />
-                                                                ) : (
-                                                                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="chat-att-doc">
-                                                                        📄 {att.originalName}
-                                                                    </a>
-                                                                )}
+                            <div className="chat-main-area">
+                                {/* Messages Area */}
+                                <div className={`chat-messages-col ${threadParent ? "with-thread" : ""}`}>
+                                    <div className="chat-messages">
+                                        {loadingMsgs ? (
+                                            <div className="chat-loading"><Loader /></div>
+                                        ) : messages.length === 0 ? (
+                                            <div className="chat-start">
+                                                <div className="chat-start-icon">💬</div>
+                                                <h4>Start the conversation</h4>
+                                                <p>Send a message to begin collaborating on this project.</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {messages.map((msg, i) => {
+                                                    const isMe = msg.sender?._id === user?.id || msg.sender === user?.id
+                                                    const showAvatar = i === 0 || messages[i - 1]?.sender?._id !== msg.sender?._id
+                                                    const hasMedia = msg.attachments?.some(a => a.type === "image" || a.type === "video")
+                                                    return (
+                                                        <div key={msg._id} className={`chat-msg ${isMe ? "chat-msg-me" : "chat-msg-other"} ${!showAvatar ? "chat-msg-grouped" : ""}`}>
+                                                            {!isMe && showAvatar && <Avatar name={msg.sender?.name} src={msg.sender?.avatar} size={28} />}
+                                                            {!isMe && !showAvatar && <div className="chat-msg-spacer" />}
+                                                            <div className="chat-bubble">
+                                                                {!isMe && showAvatar && <span className="chat-sender">{msg.sender?.name}</span>}
+                                                                {msg.text && <p className="chat-text">{msg.text}</p>}
+                                                                {msg.attachments?.map((att, j) => (
+                                                                    <div key={j} className="chat-attachment">
+                                                                        {att.type === "image" ? (
+                                                                            <img src={att.url} alt={att.originalName} className="chat-att-img" />
+                                                                        ) : att.type === "video" ? (
+                                                                            <video src={att.url} controls className="chat-att-video" />
+                                                                        ) : (
+                                                                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="chat-att-doc">📄 {att.originalName}</a>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                                <div className="chat-bubble-footer">
+                                                                    <span className="chat-time">{formatRelative(msg.createdAt)}</span>
+                                                                    {hasMedia && (
+                                                                        <button className="chat-thread-btn" onClick={() => openThread(msg)}>
+                                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                                                            {msg.threadCount > 0 ? `${msg.threadCount} replies` : "Thread"}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        ))}
-                                                        <span className="chat-time">{formatRelative(msg.createdAt)}</span>
+                                                        </div>
+                                                    )
+                                                })}
+                                                <div ref={chatEndRef} />
+                                            </>
+                                        )}
+                                        {typingUsers.length > 0 && (
+                                            <div className="chat-typing">
+                                                <div className="typing-dots"><span/><span/><span/></div>
+                                                <span>{typingUsers.map(u => u.name?.split(" ")[0]).join(", ")} typing...</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <form className="chat-input-bar" onSubmit={handleSendMessage}>
+                                        <input type="text" className="chat-input" placeholder="Type a message..."
+                                            value={msgText} onChange={e => { setMsgText(e.target.value); handleTyping() }} disabled={sending} />
+                                        <button type="submit" className="chat-send-btn" disabled={!msgText.trim() || sending}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* Thread Panel */}
+                                {threadParent && (
+                                    <div className="thread-panel">
+                                        <div className="thread-header">
+                                            <h4>Thread</h4>
+                                            <button className="chat-close-btn" onClick={closeThread}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            </button>
+                                        </div>
+                                        {/* Original message */}
+                                        <div className="thread-original">
+                                            <div className="thread-msg-header">
+                                                <Avatar name={threadParent.sender?.name} src={threadParent.sender?.avatar} size={24} />
+                                                <span className="thread-author">{threadParent.sender?.name}</span>
+                                                <span className="thread-time">{formatRelative(threadParent.createdAt)}</span>
+                                            </div>
+                                            {threadParent.text && <p className="thread-text">{threadParent.text}</p>}
+                                            {threadParent.attachments?.map((att, j) => (
+                                                <div key={j} className="chat-attachment">
+                                                    {att.type === "image" ? (
+                                                        <img src={att.url} alt={att.originalName} className="chat-att-img" />
+                                                    ) : att.type === "video" ? (
+                                                        <video src={att.url} controls className="chat-att-video" />
+                                                    ) : (
+                                                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="chat-att-doc">📄 {att.originalName}</a>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {/* Replies */}
+                                        <div className="thread-replies">
+                                            {loadingThread ? <Loader /> : threadReplies.map(r => (
+                                                <div key={r._id} className="thread-reply">
+                                                    <Avatar name={r.sender?.name} src={r.sender?.avatar} size={22} />
+                                                    <div className="thread-reply-body">
+                                                        <div className="thread-reply-header">
+                                                            <span className="thread-reply-name">{r.sender?.name}</span>
+                                                            <span className="thread-time">{formatRelative(r.createdAt)}</span>
+                                                        </div>
+                                                        <p className="thread-reply-text">{r.text}</p>
                                                     </div>
                                                 </div>
-                                            )
-                                        })}
-                                        <div ref={chatEndRef} />
-                                    </>
-                                )}
-
-                                {/* Typing indicator */}
-                                {typingUsers.length > 0 && (
-                                    <div className="chat-typing">
-                                        <div className="typing-dots"><span/><span/><span/></div>
-                                        <span>{typingUsers.map(u => u.name?.split(" ")[0]).join(", ")} typing...</span>
+                                            ))}
+                                        </div>
+                                        <form className="thread-input-bar" onSubmit={handleSendThreadReply}>
+                                            <input type="text" className="chat-input" placeholder="Reply..."
+                                                value={threadText} onChange={e => setThreadText(e.target.value)} disabled={sending} />
+                                            <button type="submit" className="chat-send-btn" disabled={!threadText.trim() || sending}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                                </svg>
+                                            </button>
+                                        </form>
                                     </div>
                                 )}
                             </div>
-
-                            {/* Message Input */}
-                            <form className="chat-input-bar" onSubmit={handleSendMessage}>
-                                <input
-                                    type="text"
-                                    className="chat-input"
-                                    placeholder="Type a message..."
-                                    value={msgText}
-                                    onChange={e => { setMsgText(e.target.value); handleTyping() }}
-                                    disabled={sending}
-                                />
-                                <button type="submit" className="chat-send-btn" disabled={!msgText.trim() || sending}>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <line x1="22" y1="2" x2="11" y2="13"/>
-                                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                                    </svg>
-                                </button>
-                            </form>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Modals */}
+            {/* Create Project Modal */}
             <Modal isOpen={showCreateProject} onClose={() => setShowCreateProject(false)} title="Create Project">
                 <form onSubmit={handleCreateProject} className="modal-form">
                     <Input label="Project Name" placeholder="e.g. Q3 Marketing Campaign" required
@@ -372,6 +490,7 @@ export default function WorkspaceDetail() {
                 </form>
             </Modal>
 
+            {/* Invite Modal */}
             <Modal isOpen={showInvite} onClose={() => setShowInvite(false)} title="Invite Team Member">
                 <form onSubmit={handleInvite} className="modal-form">
                     <Input label="Email Address" type="email" placeholder="editor@company.com" required
@@ -380,6 +499,34 @@ export default function WorkspaceDetail() {
                         onChange={e => setInviteForm({ ...inviteForm, role: e.target.value })}
                         options={[{ value: "editor", label: "Editor" }, { value: "admin", label: "Admin" }]} />
                     <Button type="submit" variant="primary" size="lg" loading={creating} style={{ width: "100%", marginTop: 4 }}>Send Invitation</Button>
+                </form>
+            </Modal>
+
+            {/* Assign Editors Modal */}
+            <Modal isOpen={showAssignModal} onClose={() => setShowAssignModal(false)} title={`Assign editors to ${assignProject?.name || ""}`}>
+                <form onSubmit={handleAssignEditors} className="modal-form">
+                    <p className="assign-hint">Select editors from your workspace to assign to this project.</p>
+                    <div className="editor-select-list">
+                        {workspaceEditors.length === 0 ? (
+                            <p className="assign-empty">No editors in this workspace yet. Invite one first.</p>
+                        ) : workspaceEditors.map(m => {
+                            const editorId = m.user?._id || m.user
+                            const isSelected = selectedEditors.includes(editorId)
+                            return (
+                                <label key={editorId} className={`editor-select-item ${isSelected ? "selected" : ""}`}>
+                                    <input type="checkbox" checked={isSelected} onChange={() => toggleEditor(editorId)} className="editor-checkbox" />
+                                    <Avatar name={m.user?.name} src={m.user?.avatar} size={32} />
+                                    <div className="editor-select-info">
+                                        <span className="editor-select-name">{m.user?.name || "Unknown"}</span>
+                                        <span className="editor-select-email">{m.user?.email}</span>
+                                    </div>
+                                </label>
+                            )
+                        })}
+                    </div>
+                    <Button type="submit" variant="primary" size="lg" loading={creating} style={{ width: "100%", marginTop: 4 }}>
+                        Assign {selectedEditors.length} editor{selectedEditors.length !== 1 ? "s" : ""}
+                    </Button>
                 </form>
             </Modal>
         </div>

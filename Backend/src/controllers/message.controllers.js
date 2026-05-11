@@ -42,13 +42,21 @@ export const sendMessage = asyncHandler(async (req, res) => {
         }
     }
 
+    const parentMessage = req.body.parentMessage || null
+
     const message = await Message.create({
         project: projectId,
         sender: req.user._id,
         text: text || "",
         attachments,
         readBy: [req.user._id],
+        parentMessage,
     })
+
+    // Increment thread count on parent
+    if (parentMessage) {
+        await Message.findByIdAndUpdate(parentMessage, { $inc: { threadCount: 1 } })
+    }
 
     const populated = await Message.findById(message._id).populate(
         "sender",
@@ -85,9 +93,9 @@ export const getMessages = asyncHandler(async (req, res) => {
     if (!projectId) throw new ApiError(400, "Project ID is required")
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
-    const total = await Message.countDocuments({ project: projectId })
+    const total = await Message.countDocuments({ project: projectId, parentMessage: null })
 
-    const messages = await Message.find({ project: projectId })
+    const messages = await Message.find({ project: projectId, parentMessage: null })
         .populate("sender", "name email avatar role")
         .sort({ createdAt: 1 })
         .skip(skip)
@@ -120,4 +128,16 @@ export const markRead = asyncHandler(async (req, res) => {
     )
 
     res.status(200).json(new ApiResponse(200, null, "Messages marked as read"))
+})
+
+/**
+ * Get thread replies for a message
+ * GET /api/messages/:id/thread
+ */
+export const getThread = asyncHandler(async (req, res) => {
+    const replies = await Message.find({ parentMessage: req.params.id })
+        .populate("sender", "name email avatar role")
+        .sort({ createdAt: 1 })
+
+    res.status(200).json(new ApiResponse(200, replies, "Thread fetched"))
 })
